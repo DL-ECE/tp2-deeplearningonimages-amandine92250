@@ -171,25 +171,31 @@ We can use the same function from TP-1
 def normalize_tensor(input_tensor: torch.Tensor) -> torch.Tensor:
     """Apply a normalization to the tensor"""
     # YOUR CODE HERE
-    return input_tensor/255
+    norm = input_tensor/255
+    return norm
 
 def sigmoid(input_tensor: torch.Tensor) -> torch.Tensor:
     """Apply a sigmoid to the input Tensor"""
     # YOUR CODE HERE
-    sig_tensor = torch.sigmoid(input_tensor)
+    #sig_tensor = torch.sigmoid(input_tensor)
+    sig_tensor = 1/(1+torch.exp(-input_tensor))
     return sig_tensor
 
 def softmax(input_tensor: torch.Tensor)-> torch.Tensor:
     """Apply a softmax to the input tensor"""
     # YOUR CODE HERE 
-    return torch.nn.functional.softmax(input_tensor, dim=1)
+    exp = torch.exp(input_tensor)
+    sum_exp = torch.sum(exp,axis=1).reshape(-1,1)
+    soft_tensor = exp/sum_exp
+    return soft_tensor
+
+    #return torch.nn.functional.softmax(input_tensor, dim=1)
 
 def target_to_one_hot(targets: torch.Tensor, num_classes=10) -> torch.Tensor:
     """Create the one hot representation of the target""" 
     # YOUR CODE HERE 
     # créer reresentation one hot générique sur le nb de classe
     # ar default on a 10
-    
     one_hot_matrix = torch.zeros([targets.shape[0], num_classes], dtype=torch.float32)
     
     for i in range(targets.shape[0]):
@@ -221,16 +227,17 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = train_test_split(mnist_data, mnist_target, test_size=0.33, random_state=1342)
     # Change the input data to be normalize and target data to be correctly encoded 
 
-    X_train = torch.from_numpy(X_train.astype(np.float32))
     X_train = normalize_tensor(X_train)
-  
-    X_test = torch.from_numpy(X_test.astype(np.float32))
+    X_train = torch.from_numpy(X_train.astype(np.float32))
+    
     X_test = normalize_tensor(X_test)
+    X_test = torch.from_numpy(X_test.astype(np.float32))
    
-    y_train = torch.from_numpy(y_train.astype(np.int32))
+   
+    # y_train = torch.from_numpy(y_train.astype(np.int32))
     y_train = target_to_one_hot(y_train)
     
-    y_test = torch.from_numpy(y_test.astype(np.int32))
+    # y_test = torch.from_numpy(y_test.astype(np.int32))
     y_test = target_to_one_hot(y_test)
 
 """Your remember the famous `class FFNN` from **TP1** ?? 
@@ -256,8 +263,8 @@ class FFNN(nn.Module):
 
         # We use the built-in activation functions
         # TODO: Maybe try with another activation function ! 
-        #self.activation = torch.nn.Sigmoid()
-        self.activation = torch.nn.ReLU()
+        self.activation = torch.nn.Sigmoid()
+        #self.activation = torch.nn.ReLU()
 
 
         self.last_activation = torch.nn.Softmax(dim=1)
@@ -274,8 +281,8 @@ class FFNN(nn.Module):
 
         # We use the built-in function to compute the loss
         # TODO: Maybe try with another loss function ! 
-        self.loss_function = torch.nn.MSELoss()
-        # self.loss_function = torch.nn.CrossEntropyLoss()
+        #self.loss_function = torch.nn.MSELoss()
+        self.loss_function = torch.nn.CrossEntropyLoss()
 
         # We use the built-in function to update the model weights
         self.optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=self.momentum)
@@ -488,16 +495,23 @@ print(K_1)
 """What is the result of convolution of $ I_0 \ast K_0 $"""
 
 # put your answer here
-R_0 = np.array([[0, 0, 0, 0, 0],[252,  49, 113,  11, 137],[18, 237, 163, 119, 53],
-                [ 90,  89, 178,  75, 247],[209, 216,  48, 135, 232]])
+R_0 = np.array([[  0.,   0.,   0.,   0.,   0.],
+                [252.,  49., 113.,  11., 137.],
+                [ 18., 237., 163., 119.,  53.],
+                [ 90.,  89., 178.,  75., 247.],
+                [209., 216.,  48., 135., 232.]])
+
 print(f"R_0 =")
 print(R_0)
 
 """What is the result of convolution of $ I_0 \ast K_1 $"""
 
 # put your answer here
-R_1 = np.array([[1005,-173, 46, -288, 513],[212, 1242, 646, 356, 91],[280, 390, 1010, 295, 1040],
-                [942, 1048, 316, 740, 1154],[1570, 738, 934, 945, 1477]])
+R_1 = np.array([[1005., -173.,   46., -280.,  513.],
+                [ 212., 1242.,  646.,  356.,   91.],
+                [ 280.,  390., 1010.,  295., 1040.],
+                [ 942., 1048.,  316.,  740., 1154.],
+                [1570.,  738.,  934.,  945., 1477.]])
 print(f"R_1 =")
 print(R_1)
 
@@ -510,7 +524,7 @@ def convolution_forward_numpy(image, kernel):
   # https://medium.com/analytics-vidhya/2d-convolution-using-python-numpy-43442ff5f381
 
      # Flip the kernel-Cross Correlation
-    kernel = np.flipud(np.fliplr(kernel))
+    #kernel = np.flipud(np.fliplr(kernel))
     # convolution output
     # output = np.zeros_like(image)
 
@@ -518,29 +532,38 @@ def convolution_forward_numpy(image, kernel):
     yKernShape = kernel.shape[1] 
     xImgShape = image.shape[0] 
     yImgShape = image.shape[1]
+    padding = 1
+    strides = 1
 
-    # dimension de notre outut
-    xOutput = int(xImgShape - xKernShape + 1)
-    yOutput = int(yImgShape - yKernShape + 1)
-
+    # dimension de notre outut 5x5
+    xOutput = int(((xImgShape - xKernShape + 2 * padding) / strides) + 1)
+    yOutput = int(((yImgShape - yKernShape + 2 * padding) / strides) + 1)
+  
     output = np.zeros((xOutput, yOutput))
+    # print(output)
 
-     # Add zero padding to the input image
-    #image_padded = np.zeros((image.shape[0] + 2, image.shape[1] + 2))
-    #image_padded[1:-1, 1:-1] = image
+      # Add zero padding to the input image
+    image_padded = np.zeros((image.shape[0] + 2, image.shape[1] + 2))
+    image_padded[1:-1, 1:-1] = image
+    # print(image)
 
     # Loop over every pixel of the image
-    for x in range(image.shape[1]-2):
-        for y in range(image.shape[0]-2):
+    for y in range(image.shape[1]):
+        for x in range(image.shape[0]):
             # element-wise multiplication of the kernel and the image
-            output[y, x] = (kernel * image[y: y+3, x: x+3]).sum()
+            output[x, y] = (kernel * image_padded[x: x + xKernShape, y: y + yKernShape]).sum()
+            #output[y, x] = (kernel * image[y: y+3, x: x+3]).sum()
     return output
+
+print(convolution_forward_numpy(I,K_0))
 
 """Test your implementation on the two previous example and compare the results to the result manually computed."""
 
-# VOIR OURQUOI CA FONCTIONNE AS 
-assert convolution_forward_numpy(I, K_0) == R_0
-assert convolution_forward_numpy(I, K_1) == R_1
+assert np.array_equal(convolution_forward_numpy(I, K_0), R_0)
+assert np.array_equal(convolution_forward_numpy(I, K_1), R_1)
+
+#assert convolution_forward_numpy(I, K_0) == R_0
+#assert convolution_forward_numpy(I, K_1) == R_1
 
 """Display the result image of the convolution"""
 
@@ -556,14 +579,18 @@ def display_image(img):
 # display the image
 display_image(image)
 
-
 # Do the convolution operation and display the resulting image
 
+
 # YOUR CODE HERE
-# output_image = convolution_forward_numpy(image, K_0) 
-output_image = convolution_forward_torch(image,K_0)
-#print (output_image.weight)
+output_image=np.zeros(image.shape)
+for i in range(image.shape[2]):
+  output_image[:,:,i] = convolution_forward_numpy(image[:,:,i], K_0)
 display_image(output_image)
+
+#output_image = convolution_forward_numpy(image, K_0) 
+#output_image = convolution_forward_torch(image,K_0)
+#print (output_image.weight)
 
 """## 3) Computation using __pytorch__
 
@@ -638,6 +665,16 @@ if __name__ == "__main__" :
 
 def display_10_images(dataset):
 
+  for i in range(0, 9):
+    image, target = dataset[i]
+    print(target)
+    plot_one_tensor(image)
+    plt.show()
+
+
+fmnist_train = FashionMNIST(os.getcwd(), train=True, download=True)
+display_10_images(fmnist_train)
+
 """What is the shape of each images
 How many images do we have
 What are the different classes
@@ -652,9 +689,10 @@ def fashion_mnist_dataset_answer():
     return {'shape': shape, 'nb_in_train_set': number_of_images_in_train_set, 'nb_in_test_set': number_of_images_in_test_set, 'number_of_classes': number_of_classes}
 
 # Plot an image and the target  
-data = FashionMNIST(os.getcwd(), train=True, download=True)
-img, target = data[1]
-plt.imshow(img, cmap='gray')
+fmnist_train = FashionMNIST(os.getcwd(), train=True, download=True)
+img, target = fmnist_train[1]
+print(target)
+plot_one_tensor(img)
 
 """## Create a convolutional neural network
 
