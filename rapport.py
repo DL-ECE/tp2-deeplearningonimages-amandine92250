@@ -562,6 +562,9 @@ print(convolution_forward_numpy(I,K_0))
 assert np.array_equal(convolution_forward_numpy(I, K_0), R_0)
 assert np.array_equal(convolution_forward_numpy(I, K_1), R_1)
 
+assert np.array_equal(convolution_forward_torch(I, K_0), R_0)
+assert np.array_equal(convolution_forward_torch(I, K_1), R_1)
+
 #assert convolution_forward_numpy(I, K_0) == R_0
 #assert convolution_forward_numpy(I, K_1) == R_1
 
@@ -585,7 +588,7 @@ display_image(image)
 # YOUR CODE HERE
 output_image=np.zeros(image.shape)
 for i in range(image.shape[2]):
-  output_image[:,:,i] = convolution_forward_numpy(image[:,:,i], K_0)
+  output_image[:,:,i] = convolution_forward_torch(image[:,:,i], K_0)
 display_image(output_image)
 
 #output_image = convolution_forward_numpy(image, K_0) 
@@ -599,34 +602,40 @@ Now let's use pytorch convolution layer to do the forward pass. Use the document
 
 def convolution_forward_torch(image, kernel):
     # YOUR CODE HERE 
-    
-    xKernShape = kernel.shape[0] 
-    yKernShape = kernel.shape[1] 
-    xImgShape = image.shape[0] 
-    yImgShape = image.shape[1]
-
-    # dimension de notre outut
-    xOutput = int(xImgShape - xKernShape + 1)
-    yOutput = int(yImgShape - yKernShape + 1)
-
-    output = np.zeros((xOutput, yOutput))
-    # image_d = torch.FloatTensor(np.asarray(image.reshape(1, 1, image.shape[0], image.shape[1])))
   
-    
-
     # nn.Conv2d : Applies a 2D convolution over an input signal composed of several input planes
     # kernel size 3x3 (3,3)
     # Input channels = 1, output channels = 1
+    
 
-    kerl = torch.nn.Parameter(kernel)
+    # kerl = torch.nn.Parameter(kernel)
+    # input_layer = reshape(image, [-1, 28, 28, 1])
 
-    conop = nn.Conv2d(1, 1, 3)
-    #conop.weight = nn.Parameter( kernel )
+    # conop = torch.nn.Conv2d(1, 1, 3, 1)
+    # print (conop)
 
-    output = conop(image)
-   
+    # conop.weight = nn.Parameter( kernel )
 
-    return output
+    # output = conop(image)
+    
+    input_layer = image.reshape(1,1,image.shape[1],image.shape[0])
+    input_layer = torch.Tensor(input_layer)
+
+    kernel= kernel.reshape(1,1,kernel.shape[1],kernel.shape[0])
+    kernel = torch.Tensor(kernel)
+    output = F.conv2d(input_layer,kernel,padding=1,groups=1)
+    
+    return output.numpy().astype(int).reshape(input_layer.shape[2], input_layer.shape[3])
+    # kernel= kernel.reshape(1,1,kernel.shape[1],kernel.shape[0])
+    # kernel = torch.Tensor(kernel)
+
+    # input_layer = image.reshape(1,1,image.shape[1],image.shape[0])
+    # input_layer = torch.Tensor(input_layer)
+
+    # conop = torch.nn.Conv2d(input_layer,kernel ,kernel_size=kernel.shape[0])
+    #output = conop(image)
+
+    #return output
 
      #out = nn.Conv2d(image, kernel, padding=0)
     # une fois qu'on a fait convolution on ael ca featureMa
@@ -635,9 +644,14 @@ def convolution_forward_torch(image, kernel):
   # out 
   # size c'est 3 -> kaenel size 3x3 (3,3)
 
+print(convolution_forward_torch(I,K_0))
+
 """In pytorch you can also access other layer like convolution2D, pooling layers, for example in the following cell use the __torch.nn.MaxPool2d__ to redduce the image size."""
 
+m = nn.MaxPool2d(3, stride=2)
+image=m(torch.Tensor(image))
 
+display_image(image[:,:,0])
 
 """# Part 2: Using convolution neural network to recognize digits
 
@@ -721,12 +735,52 @@ class CNNModel(nn.Module):
     def __init__(self, classes=10):
         super().__init__()
         # YOUR CODE HERE 
-        self.conv1 = NotImplemented
+        self.conv1 = torch.nn.Conv2d(1, 128,kernel_size=3,padding = 1)
+        self.conv2 = torch.nn.Conv2d(128,256,kernel_size=3,padding = 1)
+        self.conv3 = torch.nn.Conv2d(256,256,kernel_size=3,padding = 1)
+        self.conv4 = torch.nn.Conv2d(256,32,kernel_size=3,padding = 1)
+
+       
+
+        self.maxpool =  nn.MaxPool2d(2,2)
+        self.flaten = nn.Flatten()
+
+        self.lin1 = nn.Linear (7 * 7 * 32, 224) 
+        self.lin2 = nn.Linear(224, 128)
+        self.lin3 = nn.Linear(128, 10)
+
+        self.activation = torch.nn.ReLU()
+        self.last_activation = torch.nn.Softmax(dim=1)
+        
+                                   
 
     def forward(self, input):
         x = self.conv1(input)
-        # YOUR CODE HERE 
-        y = NotImplemented
+        x = self.activation(x)
+        x = self.conv2(x)
+        x = self.activation(x)
+
+        x = self.maxpool(x)
+
+        x = self.conv3(x)
+        x = self.activation(x)
+        x = self.conv4(x)
+        x = self.activation(x)
+
+        x = self.maxpool(x)
+
+        x = self.flaten(x)
+        # reshaping our inputs from images to vectors before applying the linear transformation
+        # -1->should actually be 784
+        x = x.reshape(x.size(0),-1)
+
+        x = self.lin1(x)
+        x = self.activation(x)
+        x = self.lin2(x)
+        x = self.activation(x)
+        x = self.lin3(x)
+       
+        y = self.last_activation(x)
         return y
 
 def train_one_epoch(model, device, data_loader, optimizer):
@@ -738,7 +792,7 @@ def train_one_epoch(model, device, data_loader, optimizer):
         output = model(data)
 
         # YOUR CODE HERE 
-        loss = NotImplemented
+        loss = F.cross_entropy(output, target)
         loss.backward()
         train_loss += loss.item()
         optimizer.step()
@@ -754,34 +808,38 @@ def train_one_epoch(model, device, data_loader, optimizer):
 def evaluation(model, device, data_loader):
     eval_loss = 0
     correct = 0
-
+    #minibatch
     for num, (data, target) in tq.tqdm(enumerate(data_loader), total=len(data_loader.dataset)/data_loader.batch_size):
+      # copie données GpU
         data, target = data.to(device), target.to(device)
+        # score pour chaque images
         output = model(data)
         # YOUR CODE HERE 
-        eval_loss = NotImplemented
+        eval_loss += F.cross_entropy(output, target).item()
         prediction = output.argmax(dim=1)
         correct += torch.sum(prediction.eq(target)).item()
     result = {'loss': eval_loss / len(data_loader.dataset),
               'accuracy': correct / len(data_loader.dataset)
               }
+    # retourn tuple avce the mean loss and mean accuracy
     return result
     
 if __name__ == "__main__":
     
     # Network Hyperparameters 
     # YOUR CODE HERE 
-    minibatch_size = NotImplemented
-    nepoch = NotImplemented
-    learning_rate = NotImplemented
-    momentum = NotImplemented
+    minibatch_size = 15
+    nepoch = 19
+    learning_rate = 0.09
+    momentum = 0.0001
 
 
     model = CNNModel()
     model.to(device)
 
     # YOUR CODE HERE 
-    optimizer = NotImplemented
+    optimizer = optim.SGD(model.parameters(),learning_rate , momentum)
+    #self.optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=self.momentum)
 
     # Train for an number of epoch 
     for epoch in range(nepoch):
@@ -808,7 +866,7 @@ if __name__ == "__main__" :
     # TODO HERE: Upload an image to the notebook in the navigation bar on the left
     # `File` `Load File`and load an image to the notebook. 
     
-    filename = "" 
+    filename = "/ECE_Paris_Lyon.jpg" 
     # Loading a already trained network in pytorch 
     model = torch.hub.load('pytorch/vision:v0.6.0', 'deeplabv3_resnet101', pretrained=True)
     model.eval()
@@ -821,7 +879,6 @@ if __name__ == "__main__" :
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
-
     input_tensor = preprocess(input_image)
     input_batch = input_tensor.unsqueeze(0) # create a mini-batch as expected by the model
 
