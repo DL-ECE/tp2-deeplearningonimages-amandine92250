@@ -852,7 +852,28 @@ if __name__ == "__main__":
       print(f"Result Test dataset {eval_result}")
 
 """## Open Analysis
-Same as TP 1 please write a short description of your experiment
+
+Network Hyperparameters 
+  minibatch_size = 15
+  nepoch = 19
+  learning_rate = 0.09
+  momentum = 0.0001
+
+Result Test dataset {'loss': 0.04881443774700165, 'accuracy': 0.9013}
+
+En utilisant les parametres ci dessus j'obtiens donc une accuracy de 90
+J'ai dans un premier temps utilisé les parmètres instancié lors de mon premier tp. cependant, les résultats n'étant pas concluant, j'ai finalement modifié ces derniers : 
+- minibatch_size : J'ai choisi une petite valeur pour ce paramètre car j'ai remarqué que cela permettait une convergence plus rapide. 
+
+- nepoch : J'ai vite remarqué qu'il était plus simple d'atteindre une accuracy élevée en augmenant le nb d'éopoques. Seul problème : cela augmente le temps d'exécution...
+
+- learning_rate : J'ai remarqué que ce dernier était fortement lié au nb d'époques : taux d'apprentissage  petits-> plus d'époques de formation car plus petits changements apportés aux poids à chaque mise à jour et inversement. J'ai dans un premier temps fixé un très petit LR mais je n'arrivais pas atteindre un niveau d'accuracy suffisant. Je l'ai finalement augmenté a  0.09.
+
+- momentum : En fixant le momentum a une très faible valeur j'ai remarqué que la convergence se faisait plus rapidement et avec de meilleur résultats d'accuracy. 
+
+- activation = ReLU() : Meilleures performances de convergence que sigmoïde
+
+- optimizer = SGD
 
 # BONUS 
 
