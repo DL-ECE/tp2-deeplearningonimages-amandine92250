@@ -588,7 +588,7 @@ display_image(image)
 # YOUR CODE HERE
 output_image=np.zeros(image.shape)
 for i in range(image.shape[2]):
-  output_image[:,:,i] = convolution_forward_torch(image[:,:,i], K_0)
+  output_image[:,:,i] = convolution_forward_numpy(image[:,:,i], K_0)
 display_image(output_image)
 
 #output_image = convolution_forward_numpy(image, K_0) 
